@@ -1,0 +1,69 @@
+name: Pipeline CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pytest
+          pip install clickhouse-connect==0.7.0
+          pip install redis==5.0.1
+          pip install scikit-learn==1.4.0
+          pip install numpy==1.26.3
+          pip install pandas==2.1.4
+          pip install joblib==1.3.2
+          pip install fastapi==0.109.0
+          pip install httpx==0.26.0
+
+      - name: Run syntax checks
+        run: |
+          python -m py_compile producer/producer.py
+          python -m py_compile flink_jobs/processor.py
+          python -m py_compile flink_jobs/s3_sink.py
+          python -m py_compile ai_service/main.py
+          python -m py_compile api/main.py
+          echo "All files passed syntax check"
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v --tb=short
+
+  validate-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate docker-compose syntax
+        run: |
+          docker compose config --quiet
+          echo "docker-compose.yml is valid"
+
+  validate-sql:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check SQL files exist and are non-empty
+        run: |
+          test -s infra/clickhouse_init.sql && echo "clickhouse_init.sql OK"
+          test -s dbt/models/staging/stg_events.sql && echo "stg_events.sql OK"
+          test -s dbt/models/marts/conversion_funnel.sql && echo "conversion_funnel.sql OK"
+          test -s dbt/models/marts/category_anomaly_rate.sql && echo "category_anomaly_rate.sql OK"
+          echo "All SQL files validated"
