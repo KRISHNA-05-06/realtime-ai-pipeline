@@ -5,4 +5,5 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY processor.py .
 COPY s3_sink.py .
+COPY data_quality.py .
 CMD ["python", "processor.py"]

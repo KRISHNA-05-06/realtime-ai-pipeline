@@ -120,6 +120,7 @@ services:
     restart: unless-stopped
     ports: ["8000:8000"]
     environment:
+      API_KEY: dev-key-change-in-prod
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
       CLICKHOUSE_USER: admin

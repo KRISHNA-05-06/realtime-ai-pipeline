@@ -262,3 +262,120 @@ def test_clickhouse_schema_has_ground_truth_columns():
     assert "anomaly_kind_truth" in content
     assert "client_ip" in content
     assert "model_evaluation" in content
+
+# ── Data quality tests ───────────────────────────────────────────
+
+def test_dq_clean_event_passes():
+    """A valid event should pass all quality checks."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "flink_jobs"))
+    from data_quality import DataQualityChecker
+    from datetime import datetime, timezone
+    dq = DataQualityChecker()
+    event = {
+        "event_id": "e1", "session_id": "s1", "user_id": "u1",
+        "event_type": "page_view", "device": "desktop", "country": "US",
+        "price": 99.99, "quantity": 2,
+        "event_ts": datetime.now(timezone.utc).isoformat(),
+    }
+    assert dq.check(event) == []
+    assert dq.pass_rate() == 1.0
+
+
+def test_dq_missing_required_field_fails():
+    """Missing event_id should fail quality check."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "flink_jobs"))
+    from data_quality import DataQualityChecker
+    from datetime import datetime, timezone
+    dq = DataQualityChecker()
+    event = {
+        "event_id": "", "session_id": "s1", "user_id": "u1",
+        "event_type": "page_view",
+        "event_ts": datetime.now(timezone.utc).isoformat(),
+    }
+    issues = dq.check(event)
+    assert any("missing_field:event_id" in i for i in issues)
+
+
+def test_dq_negative_price_fails():
+    """Negative price should fail quality check."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "flink_jobs"))
+    from data_quality import DataQualityChecker
+    from datetime import datetime, timezone
+    dq = DataQualityChecker()
+    event = {
+        "event_id": "e1", "session_id": "s1", "user_id": "u1",
+        "event_type": "purchase", "price": -5.0,
+        "event_ts": datetime.now(timezone.utc).isoformat(),
+    }
+    issues = dq.check(event)
+    assert any("negative_price" in i for i in issues)
+
+
+def test_dq_invalid_event_type_fails():
+    """Unknown event type should fail quality check."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "flink_jobs"))
+    from data_quality import DataQualityChecker
+    from datetime import datetime, timezone
+    dq = DataQualityChecker()
+    event = {
+        "event_id": "e1", "session_id": "s1", "user_id": "u1",
+        "event_type": "explode_database",
+        "event_ts": datetime.now(timezone.utc).isoformat(),
+    }
+    issues = dq.check(event)
+    assert any("invalid_event_type" in i for i in issues)
+
+
+def test_dq_late_data_flagged():
+    """Event older than 1 hour should be flagged as late data."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "flink_jobs"))
+    from data_quality import DataQualityChecker
+    from datetime import datetime, timezone, timedelta
+    dq = DataQualityChecker()
+    old_ts = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    event = {
+        "event_id": "e1", "session_id": "s1", "user_id": "u1",
+        "event_type": "page_view", "event_ts": old_ts,
+    }
+    issues = dq.check(event)
+    assert any("late_data" in i for i in issues)
+
+
+def test_dq_stats_track_correctly():
+    """Pass/fail counters should update correctly."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "flink_jobs"))
+    from data_quality import DataQualityChecker
+    from datetime import datetime, timezone
+    dq = DataQualityChecker()
+    good = {"event_id":"e1","session_id":"s1","user_id":"u1",
+            "event_type":"page_view","event_ts":datetime.now(timezone.utc).isoformat()}
+    bad  = {"event_id":"","session_id":"s1","user_id":"u1",
+            "event_type":"page_view","event_ts":datetime.now(timezone.utc).isoformat()}
+    dq.check(good)
+    dq.check(bad)
+    stats = dq.stats()
+    assert stats["total"]  == 2
+    assert stats["passed"] == 1
+    assert stats["failed"] == 1
+    assert stats["pass_rate"] == 0.5
+
+
+def test_api_auth_file_exists():
+    """auth.py must exist in the api folder."""
+    import os
+    assert os.path.exists("api/auth.py"), "api/auth.py missing"
+
+
+def test_api_auth_uses_env_var():
+    """auth.py must read API_KEY from environment."""
+    with open("api/auth.py") as f:
+        content = f.read()
+    assert "API_KEY" in content
+    assert "os.getenv" in content
+    assert "X-API-Key" in content

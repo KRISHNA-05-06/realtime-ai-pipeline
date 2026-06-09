@@ -23,6 +23,7 @@ import redis.asyncio as aioredis
 from confluent_kafka import Consumer, KafkaError, Producer
 
 from s3_sink import S3Sink
+from data_quality import DataQualityChecker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("processor")
@@ -183,6 +184,7 @@ async def main():
     tracker = SessionTracker()
     ipwin = IPVelocityWindow()
     s3 = S3Sink()   # no-op if AWS creds aren't set
+    dq = DataQualityChecker()
 
     consumer = Consumer({"bootstrap.servers": KAFKA_BOOTSTRAP, "group.id": "stream-processor-v1",
                          "auto.offset.reset": "latest", "enable.auto.commit": False,
@@ -200,8 +202,17 @@ async def main():
             if msg is not None and not msg.error():
                 try:
                     event = json.loads(msg.value().decode())
-                    tracker.add(event["session_id"], event)
-                    batch.append(event)
+                    issues = dq.check(event)
+                    if issues:
+                        # Failed quality check — send to DLQ with reason
+                        import json as _json
+                        dlq_msg = {**event, "dq_issues": issues}
+                        producer.produce(TOPIC_DLQ,
+                                         _json.dumps(dlq_msg).encode())
+                        log.debug("dq_fail: %s", issues)
+                    else:
+                        tracker.add(event["session_id"], event)
+                        batch.append(event)
                 except Exception as e:
                     log.warning("bad message: %s", e)
                     producer.produce(TOPIC_DLQ, msg.value())
@@ -256,9 +267,14 @@ async def main():
                 s3.maybe_flush()
                 elapsed = time.time() - start
                 log.info("processed=%d anomalies=%d rate=%.0f/s", processed, anomalies, processed/elapsed)
-                await redis.hset("stats:live", mapping={"events_processed": processed,
-                    "anomalies_detected": anomalies, "rate_per_sec": round(processed/elapsed,1)})
-
+                dq_stats = dq.stats()
+                await redis.hset("stats:live", mapping={
+                    "events_processed": processed,
+                    "anomalies_detected": anomalies,
+                    "rate_per_sec": round(processed/elapsed, 1),
+                    "dq_pass_rate": dq_stats["pass_rate"],
+                    "dq_failed": dq_stats["failed"],
+                })
             await asyncio.sleep(0)
 
 

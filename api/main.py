@@ -12,8 +12,14 @@ import clickhouse_connect
 import redis.asyncio as aioredis
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends
+from auth import verify_api_key
 
-app = FastAPI(title="Pipeline API")
+#app = FastAPI(title="Pipeline API")
+app = FastAPI(
+    title="Pipeline Read API",
+    dependencies=[Depends(verify_api_key)]
+)
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])
 
