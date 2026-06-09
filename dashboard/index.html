@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Event Intelligence Pipeline</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", sans-serif; }
+  body { background: #f4f3ef; color: #2c2c2a; font-size: 14px; }
+  header { background: #2c2c2a; color: #f4f3ef; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 15px; font-weight: 500; }
+  .live { color: #1D9E75; font-weight: 600; font-size: 12px; background: rgba(29,158,117,0.15); padding: 3px 10px; border-radius: 20px; animation: pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity: 0.55; } }
+  main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+  .card { background: #fff; border-radius: 10px; border: 0.5px solid #d3d1c7; padding: 16px 18px; }
+  .kpi { border-top: 3px solid var(--accent, #378ADD); }
+  .kpi .label { font-size: 11px; color: #888780; text-transform: uppercase; letter-spacing: 0.05em; }
+  .kpi .value { font-size: 26px; font-weight: 500; margin-top: 6px; }
+  .kpi .sub { font-size: 11px; color: #888780; margin-top: 4px; }
+  .charts { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .charts3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
+  .card h3 { font-size: 13px; font-weight: 500; color: #444441; margin-bottom: 12px; }
+  .chart-wrap { position: relative; height: 220px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 0.5px solid #f1efe8; }
+  th { font-weight: 500; color: #888780; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 500; color: #fff; padding: 2px 8px; border-radius: 20px; text-transform: capitalize; }
+  .pill { display: inline-block; font-size: 11px; color: #fff; padding: 2px 8px; border-radius: 20px; font-family: monospace; }
+  .mono { font-family: "SF Mono", Consolas, monospace; }
+  .dim { color: #888780; }
+  .feed-item { display: flex; gap: 10px; padding: 6px 0; border-bottom: 0.5px solid #f1efe8; font-size: 12px; align-items: center; }
+  .feed-item .ts { font-family: monospace; color: #888780; min-width: 65px; }
+  .empty { text-align: center; padding: 18px; color: #888780; font-size: 12px; }
+  footer { background: #2c2c2a; color: #888780; text-align: center; font-size: 11px; padding: 10px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>&#9679; Real-Time AI Event Intelligence Pipeline</h1>
+  <span class="live">&#9679; LIVE</span>
+</header>
+<main>
+  <section class="kpis">
+    <div class="card kpi" style="--accent:#378ADD"><div class="label">Events Processed</div><div class="value" id="kpi-events">0</div><div class="sub">total since start</div></div>
+    <div class="card kpi" style="--accent:#1D9E75"><div class="label">Throughput</div><div class="value" id="kpi-rate">0/s</div><div class="sub">rolling average</div></div>
+    <div class="card kpi" style="--accent:#E24B4A"><div class="label">Anomalies Detected</div><div class="value" id="kpi-anomalies">0</div><div class="sub" id="kpi-anomaly-rate">0% rate</div></div>
+    <div class="card kpi" style="--accent:#EF9F27"><div class="label">Model Precision</div><div class="value" id="kpi-precision">--</div><div class="sub">vs ground truth</div></div>
+  </section>
+  <section class="charts">
+    <div class="card"><h3>Events &amp; Anomalies — Last 30 Minutes</h3><div class="chart-wrap"><canvas id="chart-events"></canvas></div></div>
+    <div class="card"><h3>User Intent Distribution</h3><div class="chart-wrap"><canvas id="chart-intent"></canvas></div></div>
+  </section>
+  <section class="charts3">
+    <div class="card"><h3>Event Type Breakdown</h3><div class="chart-wrap"><canvas id="chart-events-type"></canvas></div></div>
+    <div class="card"><h3>Top Countries</h3><div class="chart-wrap"><canvas id="chart-countries"></canvas></div></div>
+    <div class="card"><h3>Revenue / Min</h3><div class="chart-wrap"><canvas id="chart-revenue"></canvas></div></div>
+  </section>
+  <section class="card" style="margin-bottom:14px">
+    <h3>Recent Anomaly Alerts</h3>
+    <table id="alerts-table"><thead><tr><th>Time</th><th>Type</th><th>Score</th><th>Session</th><th>Reason</th></tr></thead>
+    <tbody><tr><td colspan="5" class="empty">Waiting for data...</td></tr></tbody></table>
+  </section>
+  <section class="card">
+    <h3>Live Alert Feed <span style="color:#1D9E75;animation:pulse 1.5s infinite;">&#9679;</span></h3>
+    <div id="live-feed"><div class="empty">Waiting for live anomalies...</div></div>
+  </section>
+</main>
+<footer>Kafka &rarr; Stream Processor &rarr; AI Enrichment (LLM + Isolation Forest) &rarr; ClickHouse / Redis / S3 &rarr; API &rarr; Dashboard</footer>
+<script>
+const API = (location.hostname==='localhost'||location.hostname==='127.0.0.1') ? 'http://localhost:8000' : `${location.protocol}//${location.hostname}:8000`;
+const COLORS={blue:'#378ADD',teal:'#1D9E75',amber:'#EF9F27',coral:'#D85A30',purple:'#7F77DD',green:'#639922',red:'#E24B4A',gray:'#888780'};
+const INTENT_COLORS={browsing:COLORS.blue,comparison_shopping:COLORS.teal,purchase_ready:COLORS.green,about_to_churn:COLORS.red,cart_abandonment_risk:COLORS.amber,loyal_repeat:COLORS.purple};
+const ALERT_COLORS={cart_fraud:COLORS.red,price_manipulation:COLORS.amber,geo_spike:COLORS.coral,churn_risk:COLORS.purple,bot_velocity:COLORS.blue,statistical_anomaly:COLORS.gray};
+async function fetchJSON(p){try{const r=await fetch(API+p);return await r.json();}catch(e){return null;}}
+const cEvents=new Chart(document.getElementById('chart-events'),{type:'line',data:{labels:[],datasets:[{label:'Events',data:[],borderColor:COLORS.blue,tension:0.3,yAxisID:'y'},{label:'Anomalies',data:[],borderColor:COLORS.red,borderDash:[4,2],tension:0.3,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,position:'left'},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false}}}}});
+const cIntent=new Chart(document.getElementById('chart-intent'),{type:'doughnut',data:{labels:[],datasets:[{data:[],backgroundColor:[]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11}}}}}});
+const cEventsType=new Chart(document.getElementById('chart-events-type'),{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:COLORS.teal}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+const cCountries=new Chart(document.getElementById('chart-countries'),{type:'bar',data:{labels:[],datasets:[{label:'Events',data:[],backgroundColor:COLORS.purple},{label:'Anomalies',data:[],backgroundColor:COLORS.red}]},options:{responsive:true,maintainAspectRatio:false}});
+const cRevenue=new Chart(document.getElementById('chart-revenue'),{type:'line',data:{labels:[],datasets:[{label:'Revenue',data:[],borderColor:COLORS.green,tension:0.3,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+async function pollLive(){const d=await fetchJSON('/stats/live');if(!d)return;document.getElementById('kpi-events').textContent=d.events_processed.toLocaleString();document.getElementById('kpi-rate').textContent=Math.round(d.rate_per_sec).toLocaleString()+'/s';document.getElementById('kpi-anomalies').textContent=d.anomalies_detected.toLocaleString();const rate=d.events_processed?(d.anomalies_detected/d.events_processed*100).toFixed(2):0;document.getElementById('kpi-anomaly-rate').textContent=rate+'% rate';const feed=document.getElementById('live-feed');const alerts=d.recent_alerts||[];if(alerts.length===0){feed.innerHTML='<div class="empty">Waiting for live anomalies...</div>';}else{feed.innerHTML=alerts.map(a=>`<div class="feed-item"><span class="ts">${(a.ts||'').slice(11,19)}</span><span class="badge" style="background:${ALERT_COLORS[a.type]||COLORS.gray}">${(a.type||'').replace(/_/g,' ')}</span><span class="mono dim">${Number(a.score).toFixed(3)}</span><span>${a.reason||''}</span></div>`).join('');}}
+async function pollPrecision(){const d=await fetchJSON('/metrics/model-precision');if(d&&d.precision!=null){document.getElementById('kpi-precision').textContent=(d.precision*100).toFixed(1)+'%';}}
+async function pollEventsChart(){const d=await fetchJSON('/metrics/events-per-minute?minutes=30');if(!d)return;cEvents.data.labels=d.map(r=>r.minute.slice(11,16));cEvents.data.datasets[0].data=d.map(r=>r.total);cEvents.data.datasets[1].data=d.map(r=>r.anomalies);cEvents.update('none');}
+async function pollIntent(){const d=await fetchJSON('/metrics/intent-distribution?minutes=60');if(!d)return;cIntent.data.labels=d.map(r=>r.intent);cIntent.data.datasets[0].data=d.map(r=>r.count);cIntent.data.datasets[0].backgroundColor=d.map(r=>INTENT_COLORS[r.intent]||COLORS.gray);cIntent.update('none');}
+async function pollEventTypes(){const d=await fetchJSON('/metrics/event-type-breakdown?minutes=60');if(!d)return;cEventsType.data.labels=d.map(r=>r.event_type);cEventsType.data.datasets[0].data=d.map(r=>r.count);cEventsType.update('none');}
+async function pollCountries(){const d=await fetchJSON('/metrics/country-heatmap?minutes=60');if(!d)return;const t=d.slice(0,8);cCountries.data.labels=t.map(r=>r.country);cCountries.data.datasets[0].data=t.map(r=>r.events);cCountries.data.datasets[1].data=t.map(r=>r.anomalies);cCountries.update('none');}
+async function pollRevenue(){const d=await fetchJSON('/metrics/revenue-per-minute?minutes=30');if(!d)return;cRevenue.data.labels=d.map(r=>r.minute.slice(11,16));cRevenue.data.datasets[0].data=d.map(r=>r.revenue);cRevenue.update('none');}
+async function pollAlerts(){const d=await fetchJSON('/anomalies/alerts?limit=15');if(!d)return;const tb=document.querySelector('#alerts-table tbody');if(d.length===0){tb.innerHTML='<tr><td colspan="5" class="empty">No alerts yet</td></tr>';return;}tb.innerHTML=d.map(a=>`<tr><td class="mono">${String(a.alerted_at).slice(11,19)}</td><td><span class="badge" style="background:${ALERT_COLORS[a.alert_type]||COLORS.gray}">${(a.alert_type||'').replace(/_/g,' ')}</span></td><td><span class="pill" style="background:${a.score>=0.85?COLORS.red:a.score>=0.65?COLORS.amber:COLORS.gray}">${a.score.toFixed(3)}</span></td><td class="mono dim">${(a.session_id||'').slice(0,8)}…</td><td>${a.reason||'—'}</td></tr>`).join('');}
+pollLive();setInterval(pollLive,2000);
+pollPrecision();setInterval(pollPrecision,15000);
+pollEventsChart();setInterval(pollEventsChart,5000);
+pollIntent();setInterval(pollIntent,8000);
+pollEventTypes();setInterval(pollEventTypes,8000);
+pollCountries();setInterval(pollCountries,10000);
+pollRevenue();setInterval(pollRevenue,5000);
+pollAlerts();setInterval(pollAlerts,4000);
+</script>
+</body>
+</html>

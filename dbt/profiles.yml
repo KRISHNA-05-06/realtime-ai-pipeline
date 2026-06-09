@@ -1,0 +1,11 @@
+pipeline:
+  target: dev
+  outputs:
+    dev:
+      type: clickhouse
+      host: clickhouse
+      port: 8123
+      user: admin
+      password: admin123
+      schema: pipeline
+      secure: false

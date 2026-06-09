@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+node_modules/
+*.joblib
+ai_service/model/
+data/
+.DS_Store
+dbt/target/
+dbt/dbt_packages/
+spark-warehouse/
+.ipynb_checkpoints/

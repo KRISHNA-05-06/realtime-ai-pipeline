@@ -1,0 +1,9 @@
+name: pipeline_analytics
+version: "1.0.0"
+profile: pipeline
+models:
+  pipeline_analytics:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
