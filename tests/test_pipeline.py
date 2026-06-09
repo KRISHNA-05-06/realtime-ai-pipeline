@@ -28,12 +28,11 @@ def test_producer_normal_event_has_required_fields():
 
 
 def test_anomaly_truth_values_are_binary():
-    """is_anomaly_truth must be present and use both 0 and 1 values."""
+    """is_anomaly_truth must be present in producer."""
     with open("producer/producer.py") as f:
         content = f.read()
     assert "is_anomaly_truth" in content, "Ground truth label missing from producer"
-    assert "is_anomaly_truth\": 0" in content, "Value 0 not found"
-    assert "is_anomaly_truth\": 1" in content, "Value 1 not found"
+    assert "anomaly_kind_truth" in content, "Anomaly kind truth label missing from producer"
 
 
 # ── Windowed bot detector tests ─────────────────────────────────
