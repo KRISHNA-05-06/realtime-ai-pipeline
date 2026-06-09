@@ -32,9 +32,8 @@ def test_anomaly_truth_values_are_binary():
     with open("producer/producer.py") as f:
         content = f.read()
     assert "is_anomaly_truth" in content, "Ground truth label missing from producer"
-    # Producer sets 0 for normal events and 1 for anomalous events
-    assert ": 0," in content or ":0," in content, "Value 0 not found"
-    assert ": 1," in content or ":1," in content, "Value 1 not found"
+    assert "is_anomaly_truth\": 0" in content, "Value 0 not found"
+    assert "is_anomaly_truth\": 1" in content, "Value 1 not found"
 
 
 # ── Windowed bot detector tests ─────────────────────────────────
