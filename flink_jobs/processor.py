@@ -204,7 +204,7 @@ async def main():
                     event = json.loads(msg.value().decode())
                     issues = dq.check(event)
                     if issues:
-                        # Failed quality check — send to DLQ with reason
+                        # Failed quality check, send to DLQ with reason
                         import json as _json
                         dlq_msg = {**event, "dq_issues": issues}
                         producer.produce(TOPIC_DLQ,

@@ -1,7 +1,7 @@
 """
 Pipeline unit tests.
 These run in GitHub Actions on every push to main.
-No live services required — all logic is tested in isolation.
+No live services required. All logic is tested in isolation.
 """
 import json
 import sys
@@ -121,7 +121,7 @@ def test_bot_detector_old_events_expire():
     old_time = time.time() - 120  # 2 minutes ago
     for _ in range(50):
         w._hits["9.9.9.9"].append(old_time)
-    # One fresh event — should not be flagged
+    # One fresh event, should not be flagged
     flagged, count = w.record_and_check("9.9.9.9", now=time.time())
     assert flagged is False
     assert count == 1

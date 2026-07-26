@@ -48,7 +48,7 @@
     <div class="card kpi" style="--accent:#EF9F27"><div class="label">Model Precision</div><div class="value" id="kpi-precision">--</div><div class="sub">vs ground truth</div></div>
   </section>
   <section class="charts">
-    <div class="card"><h3>Events &amp; Anomalies — Last 30 Minutes</h3><div class="chart-wrap"><canvas id="chart-events"></canvas></div></div>
+    <div class="card"><h3>Events &amp; Anomalies: Last 30 Minutes</h3><div class="chart-wrap"><canvas id="chart-events"></canvas></div></div>
     <div class="card"><h3>User Intent Distribution</h3><div class="chart-wrap"><canvas id="chart-intent"></canvas></div></div>
   </section>
   <section class="charts3">
@@ -85,7 +85,7 @@ async function pollIntent(){const d=await fetchJSON('/metrics/intent-distributio
 async function pollEventTypes(){const d=await fetchJSON('/metrics/event-type-breakdown?minutes=60');if(!d)return;cEventsType.data.labels=d.map(r=>r.event_type);cEventsType.data.datasets[0].data=d.map(r=>r.count);cEventsType.update('none');}
 async function pollCountries(){const d=await fetchJSON('/metrics/country-heatmap?minutes=60');if(!d)return;const t=d.slice(0,8);cCountries.data.labels=t.map(r=>r.country);cCountries.data.datasets[0].data=t.map(r=>r.events);cCountries.data.datasets[1].data=t.map(r=>r.anomalies);cCountries.update('none');}
 async function pollRevenue(){const d=await fetchJSON('/metrics/revenue-per-minute?minutes=30');if(!d)return;cRevenue.data.labels=d.map(r=>r.minute.slice(11,16));cRevenue.data.datasets[0].data=d.map(r=>r.revenue);cRevenue.update('none');}
-async function pollAlerts(){const d=await fetchJSON('/anomalies/alerts?limit=15');if(!d)return;const tb=document.querySelector('#alerts-table tbody');if(d.length===0){tb.innerHTML='<tr><td colspan="5" class="empty">No alerts yet</td></tr>';return;}tb.innerHTML=d.map(a=>`<tr><td class="mono">${String(a.alerted_at).slice(11,19)}</td><td><span class="badge" style="background:${ALERT_COLORS[a.alert_type]||COLORS.gray}">${(a.alert_type||'').replace(/_/g,' ')}</span></td><td><span class="pill" style="background:${a.score>=0.85?COLORS.red:a.score>=0.65?COLORS.amber:COLORS.gray}">${a.score.toFixed(3)}</span></td><td class="mono dim">${(a.session_id||'').slice(0,8)}…</td><td>${a.reason||'—'}</td></tr>`).join('');}
+async function pollAlerts(){const d=await fetchJSON('/anomalies/alerts?limit=15');if(!d)return;const tb=document.querySelector('#alerts-table tbody');if(d.length===0){tb.innerHTML='<tr><td colspan="5" class="empty">No alerts yet</td></tr>';return;}tb.innerHTML=d.map(a=>`<tr><td class="mono">${String(a.alerted_at).slice(11,19)}</td><td><span class="badge" style="background:${ALERT_COLORS[a.alert_type]||COLORS.gray}">${(a.alert_type||'').replace(/_/g,' ')}</span></td><td><span class="pill" style="background:${a.score>=0.85?COLORS.red:a.score>=0.65?COLORS.amber:COLORS.gray}">${a.score.toFixed(3)}</span></td><td class="mono dim">${(a.session_id||'').slice(0,8)}...</td><td>${a.reason||'-'}</td></tr>`).join('');}
 pollLive();setInterval(pollLive,2000);
 pollPrecision();setInterval(pollPrecision,15000);
 pollEventsChart();setInterval(pollEventsChart,5000);

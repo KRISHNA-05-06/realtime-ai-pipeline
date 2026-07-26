@@ -108,12 +108,12 @@ Wait 60 seconds for all services to initialize, then open:
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Dashboard | http://localhost:3001 | — |
+| Dashboard | http://localhost:3001 | |
 | API docs | http://localhost:8000/docs | X-API-Key: dev-key-change-in-prod |
 | Airflow | http://localhost:8080 | admin / admin123 |
-| Kafka UI | http://localhost:8090 | — |
+| Kafka UI | http://localhost:8090 | |
 | Grafana | http://localhost:3000 | admin / admin |
-| AI service | http://localhost:8001/docs | — |
+| AI service | http://localhost:8001/docs | |
 
 ### Train the model on real data
 
@@ -147,7 +147,7 @@ docker compose up -d stream-processor
 
 Detection is a two-stage hybrid system:
 
-### Stage 1 — Hard Rules (deterministic, instant)
+### Stage 1: Hard Rules (deterministic, instant)
 
 | Rule | Condition | Alert type | Score |
 |------|-----------|------------|-------|
@@ -156,7 +156,7 @@ Detection is a two-stage hybrid system:
 | Geo spike | country in {RU, CN, IR, KP} | geo_spike | 0.80 |
 | Bot velocity | > 40 events/min from one IP | bot_velocity | 0.90 |
 
-### Stage 2 — Isolation Forest (statistical, learned)
+### Stage 2: Isolation Forest (statistical, learned)
 
 - Trained on **453,293 real REES46 e-commerce events**
 - 6 features: `event_type`, `brand`, `category`, `price`, `hour`, `session_pos`
@@ -165,7 +165,7 @@ Detection is a two-stage hybrid system:
 
 ### Bot Velocity Detection (stateful)
 
-The `IPVelocityWindow` class maintains a 60-second sliding window of event timestamps per `client_ip`. When any IP exceeds 40 events per minute, every subsequent event from that IP is flagged `bot_velocity`. This is stateful streaming — something per-event scoring cannot do.
+The `IPVelocityWindow` class maintains a 60-second sliding window of event timestamps per `client_ip`. When any IP exceeds 40 events per minute, every subsequent event from that IP is flagged `bot_velocity`. This is stateful streaming, something per-event scoring cannot do.
 
 ---
 
@@ -214,10 +214,10 @@ Failed events go to `clickstream.dlq` with a structured reason code. Quality pas
 All endpoints require an `X-API-Key` header:
 
 ```bash
-# Without key — 403 Forbidden
+# Without key, 403 Forbidden
 curl http://localhost:8000/health
 
-# With key — 200 OK
+# With key, 200 OK
 curl http://localhost:8000/health -H "X-API-Key: dev-key-change-in-prod"
 ```
 
@@ -241,9 +241,9 @@ Three DAGs run automatically once toggled active in the Airflow UI (http://local
 
 GitHub Actions runs on every push to `main`. Three parallel jobs:
 
-- **test** — 21 pytest unit tests covering bot detector, anomaly rules, alert classification, data quality, API auth, schema contract
-- **validate-docker** — validates docker-compose.yml syntax
-- **validate-sql** — checks all SQL files exist and are non-empty
+- **test**: 21 pytest unit tests covering bot detector, anomaly rules, alert classification, data quality, API auth, schema contract
+- **validate-docker**: validates docker-compose.yml syntax
+- **validate-sql**: checks all SQL files exist and are non-empty
 
 All 3 must pass for the commit to be considered clean.
 
@@ -257,13 +257,13 @@ All 3 must pass for the commit to be considered clean.
 ### Recent Anomaly Alerts and Live Feed
 ![Alerts](documents/dashboard_2.png)
 
-### Apache Airflow — 3 Scheduled DAGs (22 runs)
+### Apache Airflow: 3 Scheduled DAGs (22 runs)
 ![Airflow](documents/airflow_dags.png)
 
-### GitHub Actions CI/CD — All Green
+### GitHub Actions CI/CD: All Green
 ![CI/CD](documents/github_actions.png)
 
-### Kafka UI — Live Events with Ground Truth Labels
+### Kafka UI: Live Events with Ground Truth Labels
 ![Kafka](documents/kafka_topics.png)
 
 ### Model Precision/Recall Evaluation
@@ -315,20 +315,20 @@ docs/               Screenshots and architecture diagrams
 
 Migrating to AWS free-tier services:
 
-- **Amazon S3 + AWS Glue Data Catalog + Apache Iceberg** — managed data lake with schema registry
-- **Amazon DynamoDB** — replace Redis as feature store (always-free 25GB)
-- **AWS Lambda + API Gateway** — serverless API layer replacing FastAPI container
-- **AWS CloudWatch** — pipeline monitoring with anomaly rate alarms
-- **AWS Bedrock** — replace mock LLM with Claude 3 Haiku for intent classification
-- **Terraform** — infrastructure as code for all AWS resources
-- **GitHub Actions deploy step** — automatic Lambda deployment on push
+- **Amazon S3 + AWS Glue Data Catalog + Apache Iceberg**: managed data lake with schema registry
+- **Amazon DynamoDB**: replace Redis as feature store (always-free 25GB)
+- **AWS Lambda + API Gateway**: serverless API layer replacing FastAPI container
+- **AWS CloudWatch**: pipeline monitoring with anomaly rate alarms
+- **AWS Bedrock**: replace mock LLM with Claude 3 Haiku for intent classification
+- **Terraform**: infrastructure as code for all AWS resources
+- **GitHub Actions deploy step**: automatic Lambda deployment on push
 
 ---
 
 ## Contact
 
 **Sri Krishna Sai Kota**
-M.S. Computer Science — University of South Florida
+M.S. Computer Science, University of South Florida
 
 - Email: srikrishnasaikota1@gmail.com
 - LinkedIn: linkedin.com/in/srikrishnasai/
